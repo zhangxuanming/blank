@@ -3,23 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <title>Blank Paper</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
       padding: 0;
-      
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: white;
+      background-color: white;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      line-height: 1.6;
+      letter-spacing: 0.03em;
     }
     #editor {
-      padding-top: 5%;
-      padding-left: 10%;
-      padding-right: 10%;
-      min-height: 90vh;
+      padding: 5% 8%;
+      min-height: 100vh;
       outline: none;
-      font-size: 20px;
-      line-height: 1.5;
-      letter-spacing: 0.08em;
     }
   </style>
 </head>
@@ -30,52 +28,116 @@
     const editor = document.getElementById('editor');
     const storageKey = 'smartTextNotepad';
 
-    // 加载已保存内容
     editor.innerHTML = localStorage.getItem(storageKey) || '';
 
-    // 保存输入内容
     editor.addEventListener('input', () => {
       localStorage.setItem(storageKey, editor.innerHTML);
     });
 
-    // 自动识别 * + Tab 缩进支持
+    editor.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const htmlData = e.clipboardData.getData('text/html') || '';
+      const textData = e.clipboardData.getData('text/plain') || '';
+
+      if (htmlData) {
+        let cleanHtml = htmlData
+          .replace(/font-family:[^;"']+;?/gi, '')
+          .replace(/font-size:[^;"']+;?/gi, '')
+          .replace(/<span[^>]*>(.*?)<\/span>/gi, '$1'); // 移除多余 span
+
+        // 移除空 style 属性
+        cleanHtml = cleanHtml.replace(/style=["']\s*["']/gi, '');
+
+        document.execCommand('insertHTML', false, cleanHtml);
+      } else {
+        document.execCommand('insertText', false, textData);
+      }
+    });
+
     editor.addEventListener('keydown', (e) => {
       const selection = window.getSelection();
       if (!selection.rangeCount) return;
       const range = selection.getRangeAt(0);
       const node = range.startContainer;
 
-      // 自动识别 "* "
       if ((e.key === ' ' || e.key === 'Enter') && node.nodeType === Node.TEXT_NODE) {
         const textBeforeCursor = node.textContent?.slice(0, range.startOffset) || '';
         if (/^\s*\*\s$/.test(textBeforeCursor)) {
-          e.preventDefault();
-          node.textContent = node.textContent.replace(/^\s*\*\s/, '');
-          document.execCommand('insertUnorderedList');
-          return;
+          const li = getClosestTag(selection.anchorNode, 'LI');
+          if (!li) {
+            e.preventDefault();
+            const fullText = node.textContent || '';
+            const match = fullText.match(/^\s*\*\s/);
+            const afterStar = match ? fullText.slice(match[0].length) : fullText;
+
+            document.execCommand('insertUnorderedList');
+
+            const newLI = getClosestTag(window.getSelection().anchorNode, 'LI');
+            if (newLI) {
+              newLI.innerHTML = '';
+              newLI.appendChild(document.createTextNode(afterStar));
+            }
+            return;
+          }
         }
       }
 
-      // Tab 缩进列表项
       if (e.key === 'Tab') {
-        const listItem = getClosestParentTag(selection.anchorNode, 'LI');
-        if (listItem) {
+        const li = getClosestTag(selection.anchorNode, 'LI');
+        if (li) {
           e.preventDefault();
           document.execCommand(e.shiftKey ? 'outdent' : 'indent');
         }
       }
+
+      if (e.key === 'Backspace') {
+        const li = getClosestTag(selection.anchorNode, 'LI');
+        if (li && isCursorAtStartOfBlock(li)) {
+          e.preventDefault();
+          document.execCommand('outdent');
+        }
+      }
+
+      if (e.key === 'Enter') {
+        const li = getClosestTag(selection.anchorNode, 'LI');
+        if (li && isListItemEmpty(li)) {
+          e.preventDefault();
+          document.execCommand('outdent');
+          const range = window.getSelection().getRangeAt(0);
+          const br = range.startContainer;
+          if (br.nodeType === Node.ELEMENT_NODE && br.tagName === 'BR') {
+            br.remove();
+          }
+        }
+      }
     });
 
-    function getClosestParentTag(node, tagName) {
+    function getClosestTag(node, tagName) {
       while (node && node !== editor) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === tagName) {
-          return node;
-        }
+        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === tagName) return node;
         node = node.parentNode;
       }
       return null;
     }
+
+    function isListItemEmpty(li) {
+      const text = li.textContent.replace(/\u200B/g, '').trim();
+      return text === '';
+    }
+
+    function isCursorAtStartOfBlock(node) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return false;
+      const range = sel.getRangeAt(0);
+      const container = range.startContainer;
+      if (!node.contains(container)) return false;
+
+      const clonedRange = range.cloneRange();
+      clonedRange.selectNodeContents(node);
+      clonedRange.setEnd(range.startContainer, range.startOffset);
+      const contentBeforeCursor = clonedRange.toString().trim();
+      return contentBeforeCursor === '';
+    }
   </script>
 </body>
 </html>
-
