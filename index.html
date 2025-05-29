@@ -82,11 +82,45 @@
         }
       }
 
+      // if (e.key === 'Tab') {
+      //   e.preventDefault();
+      //   document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+      //   const li = getClosestTag(selection.anchorNode, 'LI');
+      //   if (li) {
+      //     e.preventDefault();
+      //     document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+      //   }
+      // }
+
       if (e.key === 'Tab') {
         const li = getClosestTag(selection.anchorNode, 'LI');
         if (li) {
           e.preventDefault();
           document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+        } else {
+          // 普通段落缩进
+          e.preventDefault();
+
+          if (!e.shiftKey) {
+            // 插入缩进（全角空格）
+            document.execCommand('insertHTML', false, '&emsp;');
+          } else {
+            // Shift+Tab：删除前面一个 &emsp;
+            const range = window.getSelection().getRangeAt(0);
+            const container = range.startContainer;
+
+            if (container.nodeType === Node.TEXT_NODE) {
+              const content = container.textContent;
+              const offset = range.startOffset;
+
+              if (content.slice(offset - 1, offset + 1) === '\u2003') {
+                // 如果是 &emsp; 插入字符
+                container.textContent = content.slice(0, offset - 1) + content.slice(offset);
+                range.setStart(container, offset - 1);
+                range.setEnd(container, offset - 1);
+              }
+            }
+          }
         }
       }
 
