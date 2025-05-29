@@ -19,10 +19,21 @@
       min-height: 80vh;
       outline: none;
     }
+    
+    /* #editor.empty::before {
+      content: attr(data-placeholder);
+      color: #aaa;
+      pointer-events: none;
+      position: absolute;
+      padding: 5% 8%;
+      white-space: pre-wrap;
+    } */
+
+  
   </style>
 </head>
 <body>
-  <div id="editor" contenteditable="true" placeholder="开始写作吧..."></div>
+  <div id="editor" contenteditable="true" data-placeholder="..."></div>
 
   <script>
     const editor = document.getElementById('editor');
@@ -60,14 +71,18 @@
       const range = selection.getRangeAt(0);
       const node = range.startContainer;
 
+
       if ((e.key === ' ' || e.key === 'Enter') && node.nodeType === Node.TEXT_NODE) {
         const textBeforeCursor = node.textContent?.slice(0, range.startOffset) || '';
-        if (/^\s*\*\s$/.test(textBeforeCursor)) {
+
+        // if (/^\s*\*\s$/.test(textBeforeCursor)) {
+        if (/^\s*\*$/.test(textBeforeCursor)) {
           const li = getClosestTag(selection.anchorNode, 'LI');
           if (!li) {
             e.preventDefault();
             const fullText = node.textContent || '';
-            const match = fullText.match(/^\s*\*\s/);
+            //const match = fullText.match(/^\s*\*\s/);
+            const match = fullText.match(/^\s*\*\s?/);
             const afterStar = match ? fullText.slice(match[0].length) : fullText;
 
             document.execCommand('insertUnorderedList');
@@ -144,6 +159,8 @@
           }
         }
       }
+
+      setTimeout(() => cleanEmptyEditor(), 0);
     });
 
     function getClosestTag(node, tagName) {
@@ -172,6 +189,47 @@
       const contentBeforeCursor = clonedRange.toString().trim();
       return contentBeforeCursor === '';
     }
+
+    function cleanEmptyEditor1() {
+      const html = editor.innerHTML;
+      if (
+        html === '<ul><li><br></li></ul>' ||
+        html === '<ul><li></li></ul>' ||
+        html === '<ul></ul>' ||
+        html.trim() === ''
+      ) {
+        editor.innerHTML = '';
+        localStorage.removeItem(storageKey);
+      }
+    }
+    function cleanEmptyEditor() {
+      const html = editor.innerHTML;
+
+      // 检查是否只包含空列表结构（或完全空）
+      const isEmptyList =
+        html === '<ul><li><br></li></ul>' ||
+        html === '<ul><li></li></ul>' ||
+        html === '<ul></ul>';
+
+      // if (isEmptyList || editor.innerText.trim() === '') {
+      //   editor.innerHTML = '';
+      //   localStorage.removeItem(storageKey);
+      //   updatePlaceholder?.();
+      // }
+      if (isEmptyList) {
+        editor.innerHTML = '';
+        localStorage.removeItem(storageKey);
+        updatePlaceholder?.();
+      }
+    }
+
+    function updatePlaceholder() {
+      editor.classList.toggle('empty', editor.innerText.trim() === '');
+    }
+
+    editor.addEventListener('input', updatePlaceholder);
+    window.addEventListener('load', updatePlaceholder);
+
   </script>
 </body>
 </html>
