@@ -19,15 +19,8 @@
       min-height: 80vh;
       outline: none;
     }
-    
-    /* #editor.empty::before {
-      content: attr(data-placeholder);
-      color: #aaa;
-      pointer-events: none;
-      position: absolute;
-      padding: 5% 8%;
-      white-space: pre-wrap;
-    } */
+   
+     
     #timeDisplay {
       position: fixed;
       top: 10px;
@@ -36,6 +29,7 @@
       color: #999;
       font-family: monospace;
       z-index: 100;
+      white-space: pre-line;
     }
   
   </style>
@@ -246,9 +240,13 @@
       const d = String(now.getDate()).padStart(2, '0');
       const h = String(now.getHours()).padStart(2, '0');
       const min = String(now.getMinutes()).padStart(2, '0');
-      const timeStr = `${y}-${m}-${d} ${h}:${min}`;
-      // document.getElementById('timeDisplay').textContent = timeStr;
-      document.getElementById('timeDisplay').textContent = now.toString().replace(/GMT.*$/, '').trim(); // 显示完整时间
+      // const timeStr = `${y}-${m}-${d} ${h}:${min}`;    
+      const localStr = now.toString().slice(0, 24); // 去掉括号时区信息
+      const utcStr = now.toUTCString().replace(',', '').slice(0, 24); // 与 toString 对齐
+
+      // timeStr = `LOC: ${now.toString().replace(/GMT.*$/, '').trim()} \n UTC: ${now.toUTCString().replace(/GMT.*$/, '').trim()}`;
+      timeStr = `LOC: ${localStr} \n UTC: ${utcStr}`;
+      document.getElementById('timeDisplay').textContent = timeStr;
     }
     setInterval(updateTime, 1000); // 每 1 秒刷新一次
     updateTime(); // 初次加载
